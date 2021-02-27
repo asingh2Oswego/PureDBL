@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# Copyright © 2021-Present AcodingGenie.
+
+FILE="$@"
+
+if [[ "$#" -eq 0 ]] || [[ -d $FILE ]]; then
+
+  echo "Error: No argument or not a file."
+
+else
+  # Temporary file for manipulation.
+  TMP=$(mktemp /tmp/puredbl-XXXXX)
+
+  # Remove unimportant things from file before calculating duplicates.
+  printf "Removing comments, all IP addresses, spacing and lowercasing..."
+  cat $FILE | awk '{print tolower($0)}' | grep -Pv "#.*" | 
+  grep -Po "[](\.|\-)[\w]+$" | 
+  grep -Pv "^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(\/\d+)?$" | 
+  grep -Pv "^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}(\/\d+)?$" | 
+  grep -Pv "^(?!.*\.)(\w+($|\s|\-))+.*$" | 
+  sed '/^[[:space:]]*$/d' > temp.txt > $TMP
+  sleep 0.5
+  printf "done.\n"
+  # IP Regex: https://riptutorial.com/regex/example/14146/match-an-ip-address
+
+  # Calculate total number of duplicates.
+  dups=$(sort $TMP | uniq -cdi | grep -Po '[\d]+\s' |
+    awk '{ SUM += $1} END { print SUM }')
+
+  # Proceed if at least 1 duplicate.
+  if [[ $dups -gt 0 ]]; then
+    # Display duplicates with amount.
+    echo " "
+    echo "Duplicates / empty lines:"
+    echo "*************************"
+    echo "$(sort $TMP | uniq -cdi)"
+    echo "*************************"
+    echo "Total duplicates lines removed: $dups"
+
+    TMP2=$(mktemp /tmp/puredbl-XXXXX)
+
+    # Remove the duplicates and output as lower case.
+    sort $TMP | uniq -i >$TMP2
+
+    # Amount of lines removed.
+    origLC=$(wc -l $FILE | grep -Po '^\d+')
+    tmpLC=$(wc -l $TMP2 | grep -Po '^\d+')
+    change=$((origLC-tmpLC+$dups))
+    echo "Total lines removed: $change"
+    echo " "
+
+    printf "Save to original file, create another or quit [O/a/exit]? "
+
+    # Determine where to save file.
+    while true; do
+      read save
+      case $save in
+      exit | EXIT) break ;;
+      'O' | 'o')
+        printf "Overwriting original file with changes..."
+        cat $TMP2 >$FILE
+        sleep 0.5
+        printf "done. Opening file...\n"
+        xdg-open $FILE
+        break
+        ;;
+      'A' | 'a')
+        FILEDIR=$(dirname $FILE)
+
+        # Checksum for a unique filename
+        sum=$(md5sum $TMP2 | grep -Po "^\w+")
+        printf "Creating $sum in $FILEDIR..."
+        newFile=$FILEDIR/$sum.txt
+
+        # Create the new file and validate
+        touch $newFile
+        exitCode=$(echo $?)
+
+        if [ $exitCode != 0 ]; then
+          echo " "
+          echo "Error: couldn't create file, exit code: $exitCode."
+        else
+          cat $TMP2 >$newFile
+          sleep 0.5
+          printf "done.\n"
+          echo "Opening file..."
+          xdg-open $newFile
+        fi
+        break
+        ;;
+      *)
+        echo "Invalid choice."
+        printf "Save to original file, create another or quit [O/a/exit]? "
+        ;;
+      esac
+    done
+    rm $TMP2
+  else
+    echo "No duplicates found."
+
+    printf "Write changes to original file [Y/n/exit]? "
+
+    while true; do
+      read choice
+      case $choice in
+      exit | EXIT)
+        break
+        ;;
+      'y' | 'Y')
+        cat $TMP >$FILE
+        sleep 0.5
+        echo "Done. Opening file..."
+        xdg-open $FILE
+        break
+        ;;
+      'n' | 'N')
+        echo " "
+        break
+        ;;
+      *)
+        printf "Invalid choice: Write changes to original file [Y/n/exit]? "
+        ;;
+      esac
+    done
+  fi
+  rm $TMP
+fi
