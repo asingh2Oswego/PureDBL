@@ -1,7 +1,4 @@
 #!/bin/bash
-
-# Copyright © 2021-Present AcodingGenie.
-
 FILE="$@"
 
 if [[ "$#" -eq 0 ]] || [[ -d $FILE ]]; then
@@ -14,11 +11,11 @@ else
 
   # Remove unimportant things from file before calculating duplicates.
   printf "Removing comments, all IP addresses, spacing and lowercasing..."
-  cat $FILE | awk '{print tolower($0)}' | grep -Pv "#.*" | 
-  grep -Po "[](\.|\-)[\w]+$" | 
-  grep -Pv "^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(\/\d+)?$" | 
-  grep -Pv "^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}(\/\d+)?$" | 
-  grep -Pv "^(?!.*\.)(\w+($|\s|\-))+.*$" | 
+  cat $FILE | awk '{print tolower($0)}' | grep -Pv "#.*" |
+  grep -Po "[](\.|\-)[\w]+$" |
+  grep -Pv "^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(\/\d+)?$" |
+  grep -Pv "^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}(\/\d+)?$" |
+  grep -Pv "^(?!.*\.)(\w+($|\s|\-))+.*$" |
   sed '/^[[:space:]]*$/d' > temp.txt > $TMP
   sleep 0.5
   printf "done.\n"
